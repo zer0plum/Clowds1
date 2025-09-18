@@ -1,0 +1,91 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { createPageUrl } from '@/utils';
+import useAppLevelAuth from '@/hooks/useAppLevelAuth';
+import { User } from '@/entities/User';
+import { Home, Music, Users, MessageSquare, LogIn, User as UserIcon } from 'lucide-react';
+import MusicPlayer from './components/player/MusicPlayer';
+import { MusicPlayerProvider } from './components/player/MusicPlayerContext';
+import { Toaster } from "@/components/ui/toaster";
+
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  const { isLoggedIn } = useAppLevelAuth();
+  const pathname = usePathname();
+  const [wallpaperUrl, setWallpaperUrl] = useState('https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?q=80&w=1955&auto=format&fit=crop');
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      User.me().then(user => {
+        if (user && user.wallpaperUrl) {
+          setWallpaperUrl(user.wallpaperUrl);
+        }
+      }).catch(console.error);
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    document.body.style.backgroundImage = `url(${wallpaperUrl})`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+  }, [wallpaperUrl]);
+
+  const navItems = [
+    { href: 'Home', icon: Home, label: 'Home' },
+    { href: 'Library', icon: Music, label: 'Library' },
+    { href: 'Friends', icon: Users, label: 'Friends' },
+    { href: 'Messages', icon: MessageSquare, label: 'Messages' },
+    { href: 'Profile', icon: UserIcon, label: 'Profile' },
+  ];
+
+  return (
+    <MusicPlayerProvider>
+      <div className="relative min-h-screen w-full">
+        <main className="pb-32 pt-4 px-4">
+          {isLoggedIn ? children : (
+            <div className="flex flex-col items-center justify-center h-[80vh]">
+              <div className="text-center p-8 glass-pane rounded-2xl">
+                <h1 className="text-4xl font-bold text-white text-shadow mb-4">Welcome to GlassTune</h1>
+                <p className="text-lg text-white/80 text-shadow mb-8">Your music, your friends, your vibe.</p>
+                <Link href={createPageUrl('login')}>
+                  <button className="glass-button font-semibold py-3 px-6 rounded-xl flex items-center gap-2">
+                    <LogIn size={18} />
+                    Sign In to Continue
+                  </button>
+                </Link>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {isLoggedIn && (
+          <>
+            <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+            <MusicPlayer />
+            <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-lg h-16 glass-pane rounded-2xl px-4">
+              <div className="flex justify-around items-center h-full">
+                {navItems.map(item => {
+                  const isActive = pathname === `/${item.href}`;
+                  return (
+                    <Link key={item.href} href={createPageUrl(item.href)} className="flex flex-col items-center justify-center gap-1 text-white/70 hover:text-white transition-colors">
+                      <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                      <span className={`text-xs font-medium ${isActive ? 'text-white' : ''}`}>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </nav>
+          </>
+        )}
+      </div>
+      <Toaster />
+    </MusicPlayerProvider>
+  );
+}
